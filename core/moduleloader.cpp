@@ -9,10 +9,29 @@
 class ModuleLoader::Priv
 {
 public:
+	class Pusher
+	{
+	public:
+		explicit Pusher( const QString &name, ModuleLoader &ml ) : m_stack( ml.m_d->m_initStack )
+		{
+			m_stack.push_back( name );
+		}
+	
+		~Pusher()
+		{
+			m_stack.pop_back();
+		}
+		
+	private:
+		QStringList		&m_stack;
+	};
+	
+	
 	typedef QSharedPointer<QPluginLoader>		PluginLoaderPtr;
 	typedef QPair<IModule*, PluginLoaderPtr>	ModuleInstance;
 	
 	QMap<QString, ModuleInstance>				m_loadedModules;
+	QStringList									m_initStack;
 	QStringList									m_initializedModules;
 };
 
@@ -86,6 +105,16 @@ QStringList ModuleLoader::allModulePaths() const
 
 bool ModuleLoader::initModule( const QString &name, Workspace &ws )
 {
+	// Проверяем циклические зависимости
+	if( m_d->m_initStack.contains( name ) )
+	{
+		qWarning() << "Cyclic dependency:";
+		qWarning() << m_d->m_initStack;
+		return false;
+	}
+	
+	Priv::Pusher p( name, *this );
+	
 	// Если модуль уже инициализирован - выходим
 	if( m_d->m_initializedModules.contains( name ) )
 		return true;
