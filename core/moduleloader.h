@@ -20,16 +20,6 @@ public:
 
 	QStringList			initializedModules() const;
 	
-protected:
-	/**
-	 * @brief Метод возвращает список всех обнаруженных файлов-модулей.
-	 *
-	 * @return QStringList список обнаруженных модулей
-	 **/
-	QStringList	allModulePaths() const;
-
-	bool		initModule( const QString &name, Workspace &ws );
-
 private:
 	class Priv;
 	QScopedPointer<Priv>	m_d;

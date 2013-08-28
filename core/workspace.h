@@ -6,6 +6,8 @@
 #include <QReadWriteLock>
 #include "interface.h"
 
+class QStringList;
+
 class Workspace
 {
 	typedef QSharedPointer<Interface>	InterfacePtr;
@@ -16,7 +18,7 @@ public:
 
 	template<typename T> T  *service( const QString &name = QString() ) const;
 
-	void	dump() const;
+	QStringList	services() const;
 	
 private:
 	typedef QMap< QString, InterfacePtr >	InterfaceMap;

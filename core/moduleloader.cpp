@@ -12,7 +12,7 @@ public:
 	class Pusher
 	{
 	public:
-		explicit Pusher( const QString &name, ModuleLoader &ml ) : m_stack( ml.m_d->m_initStack )
+		explicit Pusher( const QString &name, QStringList &stack ) : m_stack( stack )
 		{
 			m_stack.push_back( name );
 		}
@@ -26,6 +26,9 @@ public:
 		QStringList		&m_stack;
 	};
 	
+	QStringList	allModulePaths() const;
+	bool		initModule( const QString &name, Workspace &ws );
+
 	
 	typedef QSharedPointer<QPluginLoader>		PluginLoaderPtr;
 	typedef QPair<IModule*, PluginLoaderPtr>	ModuleInstance;
@@ -53,7 +56,7 @@ void ModuleLoader::initAll( Workspace &ws )
 {
 	m_d->m_initializedModules.clear();
 	
-	QStringList modules = allModulePaths();
+	QStringList modules = m_d->allModulePaths();
 	qDebug() << "Available modules:" << modules;
 	
 	// Загружаем все модули в память и получаем их instance
@@ -76,14 +79,14 @@ void ModuleLoader::initAll( Workspace &ws )
 	// Инициализируем загруженные модули
 	foreach( const QString &name, m_d->m_loadedModules.keys() )
 	{
-		if( !initModule( name, ws ) )
+		if( !m_d->initModule( name, ws ) )
 			qWarning() << "Error initialize module:" << name;
 	}
 
 	m_d->m_loadedModules.clear();
 }
 
-QStringList ModuleLoader::allModulePaths() const
+QStringList ModuleLoader::Priv::allModulePaths() const
 {
 	QStringList plugins;
 	QStringList paths;
@@ -103,32 +106,36 @@ QStringList ModuleLoader::allModulePaths() const
 	return plugins;
 }
 
-bool ModuleLoader::initModule( const QString &name, Workspace &ws )
+bool ModuleLoader::Priv::initModule( const QString &name, Workspace &ws )
 {
 	// Проверяем циклические зависимости
-	if( m_d->m_initStack.contains( name ) )
+	// Если модуль с таким именем уже начал процесс инициализации
+	// и происходит попытка проинициализировать его же из других модулей,
+	// то имеем циклическую зависимость.
+	if( m_initStack.contains( name ) )
 	{
 		qWarning() << "Cyclic dependency:";
-		qWarning() << m_d->m_initStack;
+		qWarning() << m_initStack;
 		return false;
 	}
 	
-	Priv::Pusher p( name, *this );
+	// Помещаем имя модуля в стек инициализации
+	Priv::Pusher p( name, m_initStack );
 	
 	// Если модуль уже инициализирован - выходим
-	if( m_d->m_initializedModules.contains( name ) )
+	if( m_initializedModules.contains( name ) )
 		return true;
 
 	// Проверяем есть ли такой модуль в числе загруженных?
-	if( !m_d->m_loadedModules.contains( name ) )
+	if( !m_loadedModules.contains( name ) )
 	{
 		qWarning() << "Module not available:" << name;
 		return false;
 	}
 	
-	IModule *mod = m_d->m_loadedModules[ name ].first;
+	IModule *mod = m_loadedModules[ name ].first;
 	
-	// Вначале инициализируем модули от которых зависит заданный
+	// В начале инициализируем модули от которых зависит заданный
 	foreach( const QString &name, mod->depends() )
 	{
 		if( !initModule( name, ws ) )
@@ -138,7 +145,7 @@ bool ModuleLoader::initModule( const QString &name, Workspace &ws )
 	// Инициализируем заданный модуль
 	bool res = mod->initialize( ws );
 	if( res )
-		m_d->m_initializedModules.append( name );
+		m_initializedModules.append( name );
 	
 	return res;
 }

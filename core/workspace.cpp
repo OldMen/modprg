@@ -1,4 +1,5 @@
 #include "workspace.h"
+#include <QStringList>
 #include <QDebug>
 
 void Workspace::regService( const QString &name, Interface *iface )
@@ -20,8 +21,8 @@ void Workspace::unregService( const QString &name )
 	m_ifaces.remove( name );
 }
 
-void Workspace::dump() const
+QStringList Workspace::services() const
 {
 	QReadLocker lock( &m_mutex );
-	qDebug() << "Registration services: " << m_ifaces.keys();
+	return m_ifaces.keys();
 }

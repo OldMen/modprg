@@ -17,16 +17,15 @@ int main( int argc, char *argv[] )
 	// При загрузке модули могут регистрировать в рабочем пространстве свои сервисы
 	ModuleLoader loader;
 	loader.initAll( ws );
+
 	qDebug() << "Initialized modules:" << loader.initializedModules();
-	
-	// Выводим список сервисов
-	ws.dump();
+	qDebug() << "Registration services: " << ws.services();
 	
 	// Получаем указатель на логгер по его интерфейсу
 	ILogger *l = ws.service<ILogger>();
-	Q_ASSERT( l );
-	// Используем сервис логирования
-	l->log( "Execution..." );
+	if( l )
+		l->log( "Execution..." );
 	
-	return app.exec();
+	// Если сервис главного окна зарегестрирован, то запускаем очередь сообщений
+	return ( ws.service<IMainWindow>() )? app.exec() : 0;
 }
